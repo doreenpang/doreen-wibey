@@ -1,7 +1,11 @@
 bigquery_results/
 *.xlsx
-*.py
-*.ts
-*.json
+build_excel_model.py
+hot-dog-server.ts
+catchment-65min-model.xlsx
+*.csv
+.gcp_credentials.json
 .DS_Store
 node_modules/
+hotdog-server*.log
+

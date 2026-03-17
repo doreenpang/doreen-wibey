@@ -1,0 +1,43 @@
+name: Refresh Hot Dog Dashboard
+
+on:
+  schedule:
+    # 7:00 AM CST = 13:00 UTC  (CST is UTC-6)
+    - cron: "0 13 * * *"
+  workflow_dispatch:   # allow manual trigger from GitHub Actions tab
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # needed to push the updated HTML
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install google-cloud-bigquery
+        run: pip install google-cloud-bigquery --quiet
+
+      - name: Refresh dashboard data from BigQuery
+        env:
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+        run: python3 scripts/refresh_hotdog.py
+
+      - name: Commit and push updated dashboard
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add hot-dog-label-dashboard.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit — data unchanged"
+          else
+            git commit -m "chore: refresh hotdog dashboard data $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
