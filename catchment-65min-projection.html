@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>65-Min Catchment — Signal Contact Impact Projection</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --blue:     #58a6ff;
+      --green:    #3fb950;
+      --yellow:   #e3b341;
+      --red:      #f85149;
+      --purple:   #a371f7;
+      --orange:   #f0883e;
+      --c-cons:   #79c0ff;
+      --c-mod:    #d29922;
+      --c-agg:    #f85149;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.5; }
+
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px 16px; }
+    header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; }
+    header .meta { color: var(--muted); font-size: 12px; display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 9px; border-radius: 10px;
+      font-size: 11px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase;
+    }
+    .tag-blue   { background: rgba(88,166,255,.12);  color: var(--blue);   border: 1px solid rgba(88,166,255,.25); }
+    .tag-green  { background: rgba(63,185,80,.12);   color: var(--green);  border: 1px solid rgba(63,185,80,.25); }
+    .tag-yellow { background: rgba(227,179,65,.12);  color: var(--yellow); border: 1px solid rgba(227,179,65,.25); }
+    .tag-red    { background: rgba(248,81,73,.12);   color: var(--red);    border: 1px solid rgba(248,81,73,.25); }
+    .tag-purple { background: rgba(163,113,247,.12); color: var(--purple); border: 1px solid rgba(163,113,247,.25); }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 24px 32px 56px; }
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 28px 0 12px; }
+
+    /* ── Hero comparison ─────────────────────────────────────────────────── */
+    .hero { display: grid; grid-template-columns: 1fr 24px 1fr; gap: 0; align-items: stretch; margin-bottom: 8px; }
+    .hero-panel {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 22px 24px;
+    }
+    .hero-panel h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 12px; }
+    .hero-panel .big { font-size: 48px; font-weight: 800; line-height: 1; }
+    .hero-panel .sub { font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .hero-panel .detail { font-size: 12px; color: var(--muted); margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+    .hero-panel .detail span { display: block; margin-bottom: 3px; }
+    .hero-divider { display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--muted); }
+
+    /* ── Methodology box ─────────────────────────────────────────────────── */
+    .method-box {
+      background: rgba(88,166,255,.05); border: 1px solid rgba(88,166,255,.15);
+      border-radius: 8px; padding: 18px 22px; margin-bottom: 0;
+    }
+    .method-box h3 { font-size: 13px; font-weight: 700; color: var(--blue); margin-bottom: 10px; }
+    .method-box p  { font-size: 13px; color: var(--text); margin-bottom: 6px; }
+    .method-box .muted { color: var(--muted); font-size: 12px; }
+    .method-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 14px; }
+    .method-step { background: rgba(255,255,255,.03); border-radius: 6px; padding: 12px 14px; border: 1px solid var(--border); }
+    .method-step .num  { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+    .method-step .desc { font-size: 12px; color: var(--muted); }
+
+    /* ── Cards ───────────────────────────────────────────────────────────── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; }
+    .card .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .card .value { font-size: 26px; font-weight: 700; line-height: 1; }
+    .card .sub   { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+    /* ── Charts ──────────────────────────────────────────────────────────── */
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 22px; }
+    .chart-title    { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+    .chart-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+    .chart-wrap canvas { max-height: 320px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } .hero { grid-template-columns: 1fr; } .hero-divider { display: none; } }
+
+    /* ── Scenario table ──────────────────────────────────────────────────── */
+    .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: rgba(255,255,255,.03); text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 11px 14px; border-bottom: 1px solid rgba(48,54,61,.5); font-size: 13px; }
+    tr:last-child td { border-bottom: none; }
+    tr.active-row { background: rgba(255,255,255,.025); }
+    td.num { font-variant-numeric: tabular-nums; text-align: right; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+
+    /* ── Footnote ────────────────────────────────────────────────────────── */
+    .footnote { font-size: 11px; color: var(--muted); background: rgba(255,255,255,.02); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-top: 12px; }
+
+    footer { border-top: 1px solid var(--border); padding: 14px 32px; font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-top: 32px; }
+    code { font-family: "SF Mono","Fira Mono",monospace; font-size: 11px; background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📡 65-Min Catchment Expansion — Signal Contact Impact Projection</h1>
+  <div class="meta">
+    <span>Proposed: 40 min → 65 min &nbsp;(+62.5% catchment window)</span>
+    <span class="tag tag-blue">Reference: Jan 2025 expansion to 40 min</span>
+    <span class="tag tag-purple">Projection baseline: Jan–Feb 2026</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── Prior expansion vs projection hero ──────────────────────────────── -->
+  <p class="section-label">Prior Expansion as Reference</p>
+  <div class="hero">
+    <div class="hero-panel">
+      <h2 style="color:var(--blue)">📅 Jan 2025 — Expansion to 40 Min</h2>
+      <div class="big" style="color:var(--blue)">4.5×</div>
+      <div class="sub">growth in signal contacts after catchment expanded to 40 min</div>
+      <div class="detail">
+        <span>Pre-expansion avg (Jul–Oct 2024): <strong>446 / month</strong></span>
+        <span>Post-expansion avg (Jan–Jun 2025): <strong>2,008 / month</strong></span>
+        <span>Absolute increase: <strong>+1,562 / month · +18,744 / year</strong></span>
+        <span style="margin-top:6px;color:var(--yellow)">⚡ Signal contacts grew at a rate outpacing total contact growth — catchment length is directly correlated with signal exposure.</span>
+      </div>
+    </div>
+    <div class="hero-divider">→</div>
+    <div class="hero-panel" style="border-color:rgba(163,113,247,.35)">
+      <h2 style="color:var(--purple)">🔭 Proposed — Expansion to 65 Min</h2>
+      <div class="big" style="color:var(--purple)" id="heroProjected">—</div>
+      <div class="sub" id="heroSub">projected signal contacts / month (moderate scenario)</div>
+      <div class="detail" id="heroDetail">
+        <span>Current baseline (Jan–Feb 2026 avg): <strong>~47,000 / month</strong></span>
+        <span id="heroExtra"></span>
+        <span id="heroAnnual"></span>
+        <span style="margin-top:6px;color:var(--purple)" id="heroNote"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Methodology ─────────────────────────────────────────────────────── -->
+  <div class="method-box" style="margin-top:16px">
+    <h3>How these projections are built</h3>
+    <p>The Jan 2025 expansion to 40 minutes is our empirical anchor — the only observed data point where catchment length visibly spiked signal contacts. We use that event to model three scenarios for the 40→65 min move.</p>
+    <div class="method-steps">
+      <div class="method-step">
+        <div class="num" style="color:var(--blue)">4.5×</div>
+        <div class="desc">Observed multiplier from the Jan 2025 expansion. Applied to today's baseline, this is the upper-bound "same shock" scenario.</div>
+      </div>
+      <div class="method-step">
+        <div class="num" style="color:var(--c-mod)">+62.5%</div>
+        <div class="desc">Proportional scaling: catchment window grows from 40→65 min (+62.5%). Signal contacts scale linearly with time spent on-route.</div>
+      </div>
+      <div class="method-step">
+        <div class="num" style="color:var(--c-cons)">+20%</div>
+        <div class="desc">Conservative floor: drivers and ops have adapted since 2025. Signal issues don't scale 1:1 with time. Diminishing returns apply.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Scenario summary cards ─────────────────────────────────────────── -->
+  <p class="section-label">Scenario Summary</p>
+  <div class="cards" id="scenarioCards"></div>
+
+  <!-- ── Main projection chart ──────────────────────────────────────────── -->
+  <p class="section-label">Signal Contacts — Historical + Projections</p>
+  <div class="chart-wrap">
+    <div class="chart-title">Monthly Signal Contacts: History &amp; 65-Min Expansion Scenarios</div>
+    <div class="chart-subtitle">
+      <span class="tag tag-blue">● Pre-40-min baseline</span> &nbsp;
+      <span class="tag tag-green">● Post-40-min (Jan 2025 expansion)</span> &nbsp;
+      <span class="tag tag-purple">● Current (2026)</span> &nbsp;
+      <span class="tag tag-yellow">● Holiday months</span>
+    </div>
+    <canvas id="mainChart" style="max-height:380px"></canvas>
+  </div>
+
+  <!-- ── 12-month run-rate table ────────────────────────────────────────── -->
+  <p class="section-label">12-Month Run-Rate Projection</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>Basis</th>
+          <th style="text-align:right">Monthly Contacts</th>
+          <th style="text-align:right">vs Baseline</th>
+          <th style="text-align:right">Extra Contacts / Month</th>
+          <th style="text-align:right">Extra Contacts / Year</th>
+          <th style="text-align:right">Signal Rate (per 1M)</th>
+        </tr>
+      </thead>
+      <tbody id="projBody"></tbody>
+    </table>
+  </div>
+
+  <!-- ── Side-by-side charts ────────────────────────────────────────────── -->
+  <div class="two-col" style="margin-top:16px">
+    <div class="chart-wrap">
+      <div class="chart-title">Scenario Comparison</div>
+      <div class="chart-subtitle">Monthly signal contacts under each scenario</div>
+      <canvas id="scenarioBar"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Prior Expansion Pattern — 40-Min Reference</div>
+      <div class="chart-subtitle">Observed monthly signal contacts around Jan 2025 expansion</div>
+      <canvas id="refChart"></canvas>
+    </div>
+  </div>
+
+  <!-- ── Footnote ───────────────────────────────────────────────────────── -->
+  <div class="footnote">
+    † Data sources span three tables with an updated contact taxonomy from Oct 2025 onward. The pre-2025 figures (old table) and 2026 figures (new tables) use different classification depths and are not directly additive — projection scenarios are anchored to the current-table baseline only. Historical reference data is used for directional trend and growth-rate modeling, not absolute comparison.
+  </div>
+
+</main>
+
+<footer>
+  <span>Sources: <code>DRIVER_CONTACTS_2</code> · <code>DRIVER_CONTACTS_2_VEDA_</code> · <code>PIXIE.veda_human_ai_tags</code> · Billing project: <code>wmt-driver-insights</code></span>
+  <span>Generated March 13, 2026 · BRD: DFS Catchment Expansion 65mins</span>
+</footer>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+// OLD table (pre-Oct 2025) — normalized per-1M for trend display
+const OLD = [
+  { m:"Jul '24", total:1097516,  signal:491,   period:"pre",     holiday:false },
+  { m:"Aug '24", total:1170940,  signal:454,   period:"pre",     holiday:false },
+  { m:"Sep '24", total:1086896,  signal:373,   period:"pre",     holiday:false },
+  { m:"Oct '24", total:1213070,  signal:467,   period:"pre",     holiday:false },
+  { m:"Nov '24", total:6766612,  signal:1054,  period:"pre",     holiday:true  },
+  { m:"Dec '24", total:9704090,  signal:935,   period:"pre",     holiday:true  },
+  { m:"Jan '25", total:3960708,  signal:507,   period:"post40",  holiday:false },
+  { m:"Feb '25", total:4968704,  signal:845,   period:"post40",  holiday:false },
+  { m:"Mar '25", total:6584361,  signal:1540,  period:"post40",  holiday:false },
+  { m:"Apr '25", total:5968040,  signal:2007,  period:"post40",  holiday:false },
+  { m:"May '25", total:7626044,  signal:4026,  period:"post40",  holiday:false },
+  { m:"Jun '25", total:6791724,  signal:3120,  period:"post40",  holiday:false },
+  { m:"Jul '25", total:6496482,  signal:3572,  period:"post40",  holiday:false },
+  { m:"Aug '25", total:3741906,  signal:2551,  period:"post40",  holiday:false },
+];
+// NEW tables (Oct 2025+)
+const NEW = [
+  { m:"Oct '25", total:4982622,  signal:102088, period:"post40", holiday:false },
+  { m:"Nov '25", total:8334317,  signal:186847, period:"post40", holiday:true  },
+  { m:"Dec '25", total:4338171,  signal:99547,  period:"post40", holiday:false },
+  { m:"Jan '26", total:1753487,  signal:35791,  period:"current",holiday:false },
+  { m:"Feb '26", total:2577019,  signal:58202,  period:"current",holiday:false },
+  { m:"Mar '26", total:400675,   signal:10619,  period:"current",holiday:false, partial:true },
+];
+
+// ── Derived constants ─────────────────────────────────────────────────────────
+const BASELINE_MONTHS = NEW.filter(d => ["Jan '26","Feb '26"].includes(d.m));
+const BASE_SIGNAL = BASELINE_MONTHS.reduce((s,d) => s+d.signal, 0) / BASELINE_MONTHS.length; // ~47k
+const BASE_TOTAL  = BASELINE_MONTHS.reduce((s,d) => s+d.total,  0) / BASELINE_MONTHS.length;
+const BASE_RATE   = BASE_SIGNAL / BASE_TOTAL * 1e6;
+
+const SCENARIOS = [
+  {
+    key:"cons", label:"Conservative", pct:"+20%",  mult:1.20,
+    basis:"Diminishing returns; drivers/ops adapted since Jan 2025 expansion",
+    tagClass:"tag-blue", color:"#79c0ff", fill:"rgba(121,192,255,.15)"
+  },
+  {
+    key:"mod",  label:"Moderate",     pct:"+62.5%", mult:1.625,
+    basis:"Proportional to catchment window: 40→65 min = +62.5% on-route time",
+    tagClass:"tag-yellow", color:"#d29922", fill:"rgba(210,153,34,.15)"
+  },
+  {
+    key:"agg",  label:"Prior Expansion Pace", pct:"4.5×", mult:4.5,
+    basis:"Same multiplier as Jan 2025 expansion applied to current baseline",
+    tagClass:"tag-red", color:"#f85149", fill:"rgba(248,81,73,.15)"
+  },
+];
+
+const fmt  = n => Math.round(n).toLocaleString();
+const fmtR = n => n.toFixed(1);
+
+// ── Hero (moderate scenario) ──────────────────────────────────────────────────
+const MOD = SCENARIOS[1];
+const modVal   = Math.round(BASE_SIGNAL * MOD.mult);
+const modExtra = Math.round(BASE_SIGNAL * (MOD.mult - 1));
+document.getElementById("heroProjected").textContent = fmt(modVal);
+document.getElementById("heroExtra").innerHTML = `Projected increase: <strong>+${fmt(modExtra)} / month</strong>`;
+document.getElementById("heroAnnual").innerHTML = `Annual additional contacts: <strong>+${fmt(modExtra * 12)}</strong>`;
+document.getElementById("heroNote").textContent = `Scaled proportionally to the 62.5% catchment window increase.`;
+
+// ── Scenario cards ────────────────────────────────────────────────────────────
+const cardsEl = document.getElementById("scenarioCards");
+// prepend baseline card
+cardsEl.innerHTML = `
+  <div class="card" style="border-color:rgba(63,185,80,.3)">
+    <div class="label">Baseline (Current · No Expansion)</div>
+    <div class="value" style="color:var(--green)">${fmt(BASE_SIGNAL)}</div>
+    <div class="sub">signal contacts / month · Jan–Feb 2026 avg</div>
+  </div>
+`;
+SCENARIOS.forEach(sc => {
+  const val   = Math.round(BASE_SIGNAL * sc.mult);
+  const extra = Math.round(BASE_SIGNAL * (sc.mult - 1));
+  cardsEl.innerHTML += `
+    <div class="card" style="border-color:${sc.color}40">
+      <div class="label">${sc.label} (${sc.pct})</div>
+      <div class="value" style="color:${sc.color}">${fmt(val)}</div>
+      <div class="sub">+${fmt(extra)}/mo · +${fmt(extra*12)}/yr</div>
+    </div>
+  `;
+});
+
+// ── Projection table ──────────────────────────────────────────────────────────
+const tbody = document.getElementById("projBody");
+// Baseline row
+tbody.innerHTML = `
+  <tr>
+    <td><span class="pill" style="background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.25)">Baseline</span></td>
+    <td style="color:var(--muted);font-size:12px">Jan–Feb 2026 average (no expansion)</td>
+    <td class="num">${fmt(BASE_SIGNAL)}</td>
+    <td class="num" style="color:var(--muted)">—</td>
+    <td class="num" style="color:var(--muted)">—</td>
+    <td class="num" style="color:var(--muted)">—</td>
+    <td class="num" style="color:var(--muted)">${fmtR(BASE_RATE)}</td>
+  </tr>
+`;
+SCENARIOS.forEach((sc, i) => {
+  const val   = Math.round(BASE_SIGNAL * sc.mult);
+  const extra = Math.round(BASE_SIGNAL * (sc.mult - 1));
+  const rate  = (val / BASE_TOTAL * 1e6).toFixed(1);
+  const pctDisp = sc.key === "agg" ? "×4.5 of baseline" : sc.pct + " more";
+  tbody.innerHTML += `
+    <tr ${i===1 ? 'class="active-row"' : ''}>
+      <td>
+        <span class="pill" style="background:${sc.color}1a;color:${sc.color};border:1px solid ${sc.color}40">
+          ${sc.label}
+        </span>
+      </td>
+      <td style="color:var(--muted);font-size:12px">${sc.basis}</td>
+      <td class="num" style="font-weight:600">${fmt(val)}</td>
+      <td class="num" style="color:${sc.color}">${pctDisp}</td>
+      <td class="num" style="color:${sc.color}">+${fmt(extra)}</td>
+      <td class="num" style="color:${sc.color};font-weight:600">+${fmt(extra * 12)}</td>
+      <td class="num">${rate}</td>
+    </tr>
+  `;
+});
+
+// ── Main timeline chart ───────────────────────────────────────────────────────
+// Use signal-rate (per 1M) to normalize across taxonomy break — still just show
+// the shape of the trend; grey out old data slightly, bold the new + project forward
+const PROJ_LABELS  = ["Apr '26","May '26","Jun '26","Jul '26","Aug '26","Sep '26"];
+const allLabels    = [...OLD.map(d=>d.m), ...NEW.map(d=>d.m), ...PROJ_LABELS];
+const oldSignals   = OLD.map(d => d.signal);
+const newSignals   = NEW.map(d => d.m === "Mar '26" ? null : d.signal); // partial excluded
+const projBase     = [...Array(OLD.length + NEW.length).fill(null), ...PROJ_LABELS.map(() => Math.round(BASE_SIGNAL))];
+const projMod      = [...Array(OLD.length + NEW.length).fill(null), ...PROJ_LABELS.map(() => Math.round(BASE_SIGNAL * SCENARIOS[1].mult))];
+const projAgg      = [...Array(OLD.length + NEW.length).fill(null), ...PROJ_LABELS.map(() => Math.round(BASE_SIGNAL * SCENARIOS[2].mult))];
+// Bridge: last real point into projection
+const bridgeIdx = OLD.length + NEW.length - 1; // Feb '26 = last full month
+projBase[bridgeIdx]  = Math.round(BASE_SIGNAL);
+projMod[bridgeIdx]   = Math.round(BASE_SIGNAL);
+projAgg[bridgeIdx]   = Math.round(BASE_SIGNAL);
+
+// Old data bars — right axis (small scale)
+const oldBarColors = OLD.map(d =>
+  d.holiday    ? "rgba(227,179,65,.6)"  :
+  d.period==="pre" ? "rgba(88,166,255,.55)" :
+                 "rgba(63,185,80,.55)"
+);
+// New data bars — left axis (large scale)
+const newBarColors = NEW.map(d =>
+  d.partial   ? "rgba(163,113,247,.3)"  :
+  d.holiday   ? "rgba(227,179,65,.65)" :
+  d.period==="current" ? "rgba(88,166,255,.75)" :
+                 "rgba(163,113,247,.65)"
+);
+
+new Chart(document.getElementById("mainChart"), {
+  type: "bar",
+  data: {
+    labels: allLabels,
+    datasets: [
+      // Old data (right y-axis, small numbers)
+      {
+        label: "Signal contacts — pre-Oct 2025 (right axis)",
+        data: [...oldSignals, ...Array(NEW.length + PROJ_LABELS.length).fill(null)],
+        backgroundColor: [...oldBarColors, ...Array(NEW.length + PROJ_LABELS.length).fill("transparent")],
+        borderColor:   OLD.map(d => d.holiday ? "#e3b341" : d.period==="pre" ? "#58a6ff" : "#3fb950"),
+        borderWidth: 1.5, borderRadius: 3, yAxisID: "yOld",
+      },
+      // New/current data (left axis)
+      {
+        label: "Signal contacts — Oct 2025+ (left axis)",
+        data: [...Array(OLD.length).fill(null), ...newSignals, ...Array(PROJ_LABELS.length).fill(null)],
+        backgroundColor: [...Array(OLD.length).fill("transparent"), ...newBarColors, ...Array(PROJ_LABELS.length).fill("transparent")],
+        borderColor: [...Array(OLD.length).fill("transparent"), ...NEW.map(d => d.partial ? "#a371f7" : d.holiday ? "#e3b341" : d.period==="current" ? "#58a6ff" : "#a371f7")],
+        borderWidth: 1.5, borderRadius: 3, yAxisID: "y",
+      },
+      // Projection — baseline
+      {
+        label: "Projected baseline (no expansion)",
+        type: "line",
+        data: projBase,
+        borderColor: "#3fb950", backgroundColor: "transparent",
+        borderWidth: 2, borderDash: [5,4],
+        pointRadius: p => p.dataIndex >= OLD.length + NEW.length ? 4 : 0,
+        pointBackgroundColor: "#3fb950",
+        tension: 0, yAxisID: "y",
+      },
+      // Projection — moderate
+      {
+        label: "Projected moderate (+62.5%)",
+        type: "line",
+        data: projMod,
+        borderColor: "#d29922", backgroundColor: "rgba(210,153,34,.08)",
+        borderWidth: 2.5,
+        pointRadius: p => p.dataIndex >= OLD.length + NEW.length ? 5 : 0,
+        pointBackgroundColor: "#d29922",
+        tension: 0, fill: "-1", yAxisID: "y",
+      },
+      // Projection — prior expansion pace
+      {
+        label: "Projected prior-expansion pace (4.5×)",
+        type: "line",
+        data: projAgg,
+        borderColor: "#f85149", backgroundColor: "rgba(248,81,73,.06)",
+        borderWidth: 2.5,
+        pointRadius: p => p.dataIndex >= OLD.length + NEW.length ? 5 : 0,
+        pointBackgroundColor: "#f85149",
+        tension: 0, fill: "-1", yAxisID: "y",
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    interaction: { mode: "index" },
+    plugins: {
+      legend: { labels: { color: "#8b949e", font: { size: 11 }, boxWidth: 14 } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toLocaleString() : "—"}` } }
+    },
+    scales: {
+      x: { ticks: { color: "#8b949e", maxRotation: 45, font: { size: 11 } }, grid: { color: "rgba(48,54,61,.5)" } },
+      y: {
+        position: "left",
+        ticks: { color: "#a371f7", callback: v => v >= 1000 ? (v/1000).toFixed(0)+"K" : v },
+        grid: { color: "rgba(48,54,61,.35)" },
+        title: { display: true, text: "New tables (Oct 2025+)", color: "#a371f7", font: { size: 10 } }
+      },
+      yOld: {
+        position: "right",
+        ticks: { color: "#58a6ff", callback: v => v.toLocaleString() },
+        grid: { drawOnChartArea: false },
+        title: { display: true, text: "Pre-Oct 2025 (reference only)", color: "#58a6ff", font: { size: 10 } }
+      }
+    }
+  }
+});
+
+// ── Scenario bar ──────────────────────────────────────────────────────────────
+new Chart(document.getElementById("scenarioBar"), {
+  type: "bar",
+  data: {
+    labels: ["Baseline", "Conservative\n+20%", "Moderate\n+62.5%", "Prior-Expansion\nPace (4.5×)"],
+    datasets: [{
+      data: [Math.round(BASE_SIGNAL), ...SCENARIOS.map(s => Math.round(BASE_SIGNAL * s.mult))],
+      backgroundColor: ["rgba(63,185,80,.6)","rgba(121,192,255,.7)","rgba(210,153,34,.7)","rgba(248,81,73,.7)"],
+      borderColor: ["#3fb950","#79c0ff","#d29922","#f85149"],
+      borderWidth: 1.5, borderRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: {
+        label: ctx => ` ${ctx.parsed.y.toLocaleString()} / month`,
+        afterLabel: ctx => {
+          if (ctx.dataIndex === 0) return " No expansion";
+          const extra = ctx.parsed.y - Math.round(BASE_SIGNAL);
+          return ` +${extra.toLocaleString()} extra vs baseline`;
+        }
+      }}
+    },
+    scales: {
+      x: { ticks: { color: "#8b949e" }, grid: { color: "rgba(48,54,61,.5)" } },
+      y: { ticks: { color: "#8b949e", callback: v => v >= 1000 ? (v/1000).toFixed(0)+"K" : v }, grid: { color: "rgba(48,54,61,.5)" } }
+    }
+  }
+});
+
+// ── Prior expansion reference chart ──────────────────────────────────────────
+const refData = OLD.slice(0, 14); // Jul '24 – Aug '25
+const preAvg  = refData.filter(d=>d.period==="pre" && !d.holiday).reduce((s,d)=>s+d.signal,0) /
+                refData.filter(d=>d.period==="pre" && !d.holiday).length;
+const postAvg = refData.filter(d=>d.period==="post40" && !d.holiday).reduce((s,d)=>s+d.signal,0) /
+                refData.filter(d=>d.period==="post40" && !d.holiday).length;
+
+new Chart(document.getElementById("refChart"), {
+  type: "bar",
+  data: {
+    labels: refData.map(d => d.m),
+    datasets: [
+      {
+        label: "Signal contacts",
+        data: refData.map(d => d.signal),
+        backgroundColor: refData.map(d =>
+          d.holiday    ? "rgba(227,179,65,.65)"  :
+          d.period==="pre" ? "rgba(88,166,255,.7)"  :
+                         "rgba(63,185,80,.7)"
+        ),
+        borderColor: refData.map(d =>
+          d.holiday ? "#e3b341" : d.period==="pre" ? "#58a6ff" : "#3fb950"
+        ),
+        borderWidth: 1.5, borderRadius: 3,
+      },
+      {
+        label: `Pre avg (${Math.round(preAvg)}/mo)`,
+        type: "line",
+        data: refData.map((d,i) => i < 4 ? Math.round(preAvg) : null),
+        borderColor: "#58a6ff", backgroundColor: "transparent",
+        borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, tension: 0,
+      },
+      {
+        label: `Post avg (${Math.round(postAvg)}/mo)`,
+        type: "line",
+        data: refData.map((d,i) => i >= 6 && !d.holiday ? Math.round(postAvg) : null),
+        borderColor: "#3fb950", backgroundColor: "transparent",
+        borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, tension: 0,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: "#8b949e", font: { size: 11 }, boxWidth: 12 } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toLocaleString() : "—"}` } }
+    },
+    scales: {
+      x: { ticks: { color: "#8b949e", maxRotation: 45, font: { size: 11 } }, grid: { color: "rgba(48,54,61,.5)" } },
+      y: { ticks: { color: "#8b949e", callback: v => v.toLocaleString() }, grid: { color: "rgba(48,54,61,.5)" } }
+    }
+  }
+});
+</script>
+</body>
+</html>

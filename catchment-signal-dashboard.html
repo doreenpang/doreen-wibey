@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catchment Expansion Pre/Post — Signal Contacts</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --pre-color: #58a6ff;   /* blue  = pre-expansion */
+      --post-color:#3fb950;   /* green = post-expansion */
+      --warn:      #d29922;
+      --danger:    #f85149;
+      --accent:    #a371f7;
+      --holiday:   #e3b341;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header .icon { font-size: 28px; }
+    header h1 { font-size: 20px; font-weight: 700; }
+    header p  { color: var(--muted); font-size: 13px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .badge-post  { background: rgba(63,185,80,.15);  color: var(--post-color); border: 1px solid rgba(63,185,80,.3); }
+    .badge-pre   { background: rgba(88,166,255,.15); color: var(--pre-color);  border: 1px solid rgba(88,166,255,.3); }
+    .badge-warn  { background: rgba(210,153,34,.15); color: var(--warn);       border: 1px solid rgba(210,153,34,.3); }
+
+    /* ── Layout ─────────────────────────────────────────────────────────────── */
+    main { max-width: 1200px; margin: 0 auto; padding: 24px 32px 48px; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 28px 0 12px;
+    }
+
+    /* ── Cards ──────────────────────────────────────────────────────────────── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+    .card .label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .card .value { font-size: 28px; font-weight: 700; line-height: 1; }
+    .card .sub   { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .card.pre    .value { color: var(--pre-color); }
+    .card.post   .value { color: var(--post-color); }
+    .card.change .value { color: var(--danger); }
+    .card.rate   .value { color: var(--accent); }
+
+    /* ── Chart wrapper ──────────────────────────────────────────────────────── */
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      position: relative;
+    }
+    .chart-wrap canvas { max-height: 340px; }
+    .chart-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+    .chart-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } }
+
+    /* ── Holiday note ───────────────────────────────────────────────────────── */
+    .note {
+      background: rgba(227,179,65,.07);
+      border: 1px solid rgba(227,179,65,.25);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--holiday);
+      margin: 12px 0 0;
+    }
+    .note strong { font-weight: 700; }
+
+    /* ── Table ──────────────────────────────────────────────────────────────── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: rgba(255,255,255,.03);
+      text-align: left;
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(48,54,61,.5);
+      font-size: 13px;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr.is-post { background: rgba(63,185,80,.04); }
+    tr.is-holiday td { opacity: .7; }
+    td.month { font-weight: 600; color: var(--text); }
+    td.num   { font-variant-numeric: tabular-nums; text-align: right; }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .pill-post    { background: rgba(63,185,80,.15);  color: var(--post-color); }
+    .pill-pre     { background: rgba(88,166,255,.15); color: var(--pre-color); }
+    .pill-holiday { background: rgba(227,179,65,.15); color: var(--holiday); }
+
+    /* ── Footer ─────────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 16px 32px;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="icon">📡</div>
+  <div>
+    <h1>Catchment Expansion Pre/Post — Driver Signal Contacts</h1>
+    <p>January 2025 · Catchment window expanded to 40 minutes &nbsp;·&nbsp; Source: <code>wmt-driver-insights.LMD_DA.DRIVER_CONTACTS_2</code></p>
+  </div>
+</header>
+
+<main>
+
+  <p class="section-label">Summary</p>
+  <div class="cards" id="cards"></div>
+
+  <p class="section-label">Monthly Signal Contact Volume</p>
+  <div class="chart-wrap">
+    <div class="chart-title">No Internet / No Signal Contacts by Month</div>
+    <div class="chart-subtitle">
+      <span class="badge badge-pre">● Pre-expansion (Jul–Oct 2024)</span>&nbsp;
+      <span class="badge badge-warn">● Transition / Holiday (Nov–Dec 2024)</span>&nbsp;
+      <span class="badge badge-post">● Post-expansion (Jan–Jun 2025)</span>
+    </div>
+    <canvas id="barChart"></canvas>
+  </div>
+
+  <div style="margin-top:16px;" class="charts-grid">
+    <div class="chart-wrap">
+      <div class="chart-title">Signal Rate per 1M Total Contacts</div>
+      <div class="chart-subtitle">Normalizes for volume spikes (e.g. holiday peak)</div>
+      <canvas id="rateChart"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">Pre vs Post Average — Signal Contacts/Month</div>
+      <div class="chart-subtitle">Clean baseline (Jul–Oct 2024) vs post-expansion (Feb–Jun 2025)</div>
+      <canvas id="donutChart"></canvas>
+    </div>
+  </div>
+
+  <p class="section-label">Monthly Detail</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th>Period</th>
+          <th style="text-align:right">Total Contacts</th>
+          <th style="text-align:right">Signal Contacts</th>
+          <th style="text-align:right">Signal Rate (per 1M)</th>
+          <th style="text-align:right">vs Pre Avg</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <strong>⚠️ Nov–Dec 2024 context:</strong> Total contact volume spikes ~6–9× during the holiday peak (6.8M and 9.7M vs the ~1.1M pre-expansion monthly baseline). This inflates raw signal contact counts. The signal <em>rate</em> chart (per 1M total contacts) removes this distortion — note the rate actually <em>fell</em> during the holiday window, consistent with increased driver activity diluting individual signal issues.
+  </div>
+
+</main>
+
+<footer>
+  <span>Data: <code>wmt-driver-insights.LMD_DA.DRIVER_CONTACTS_2</code> &nbsp;·&nbsp; Filter: <code>CASE_CONTACT_CATEG_LVL_2 = 'No Internet/No Signal'</code></span>
+  <span>Last queried: March 13, 2026</span>
+</footer>
+
+<script>
+// ── Raw data ──────────────────────────────────────────────────────────────────
+const DATA = [
+  { month: "Jul '24",  key: "2024-07", total: 1097516,  signal: 491,  period: "pre"      },
+  { month: "Aug '24",  key: "2024-08", total: 1170940,  signal: 454,  period: "pre"      },
+  { month: "Sep '24",  key: "2024-09", total: 1086896,  signal: 373,  period: "pre"      },
+  { month: "Oct '24",  key: "2024-10", total: 1213070,  signal: 467,  period: "pre"      },
+  { month: "Nov '24",  key: "2024-11", total: 6766612,  signal: 1054, period: "holiday"  },
+  { month: "Dec '24",  key: "2024-12", total: 9704090,  signal: 935,  period: "holiday"  },
+  { month: "Jan '25",  key: "2025-01", total: 3960708,  signal: 507,  period: "post"     },
+  { month: "Feb '25",  key: "2025-02", total: 4968704,  signal: 845,  period: "post"     },
+  { month: "Mar '25",  key: "2025-03", total: 6584361,  signal: 1540, period: "post"     },
+  { month: "Apr '25",  key: "2025-04", total: 5968040,  signal: 2007, period: "post"     },
+  { month: "May '25",  key: "2025-05", total: 7626044,  signal: 4026, period: "post"     },
+  { month: "Jun '25",  key: "2025-06", total: 6791724,  signal: 3120, period: "post"     },
+];
+
+// ── Derived metrics ───────────────────────────────────────────────────────────
+const PRE_ROWS      = DATA.filter(d => d.period === "pre");
+const POST_ROWS     = DATA.filter(d => d.period === "post");
+const POST_CLEAN    = DATA.filter(d => d.period === "post" && d.key !== "2025-01"); // excl ramp-in month
+
+const preAvg        = PRE_ROWS.reduce((s, d) => s + d.signal, 0) / PRE_ROWS.length;
+const postAvg       = POST_ROWS.reduce((s, d) => s + d.signal, 0) / POST_ROWS.length;
+const postCleanAvg  = POST_CLEAN.reduce((s, d) => s + d.signal, 0) / POST_CLEAN.length;
+const pctChange     = ((postAvg - preAvg) / preAvg * 100).toFixed(0);
+const pctChangeClean= ((postCleanAvg - preAvg) / preAvg * 100).toFixed(0);
+
+const preRateAvg  = PRE_ROWS.reduce((s, d)  => s + (d.signal / d.total * 1e6), 0) / PRE_ROWS.length;
+const postRateAvg = POST_ROWS.reduce((s, d) => s + (d.signal / d.total * 1e6), 0) / POST_ROWS.length;
+const ratePctChange = ((postRateAvg - preRateAvg) / preRateAvg * 100).toFixed(0);
+
+const fmt  = n => n.toLocaleString();
+const fmtR = n => n.toFixed(1);
+
+// ── Summary cards ─────────────────────────────────────────────────────────────
+const cardsEl = document.getElementById("cards");
+cardsEl.innerHTML = `
+  <div class="card pre">
+    <div class="label">Pre-Expansion Avg (Jul–Oct 2024)</div>
+    <div class="value">${Math.round(preAvg).toLocaleString()}</div>
+    <div class="sub">signal contacts / month</div>
+  </div>
+  <div class="card post">
+    <div class="label">Post-Expansion Avg (Jan–Jun 2025)</div>
+    <div class="value">${Math.round(postAvg).toLocaleString()}</div>
+    <div class="sub">signal contacts / month</div>
+  </div>
+  <div class="card change">
+    <div class="label">Change in Signal Contacts</div>
+    <div class="value">+${pctChange}%</div>
+    <div class="sub">vs pre-expansion baseline</div>
+  </div>
+  <div class="card rate">
+    <div class="label">Signal Rate Change (per 1M)</div>
+    <div class="value">${+ratePctChange > 0 ? "+" : ""}${ratePctChange}%</div>
+    <div class="sub">${fmtR(preRateAvg)} → ${fmtR(postRateAvg)} per 1M contacts</div>
+  </div>
+  <div class="card post" style="border-color:rgba(63,185,80,.4)">
+    <div class="label">Post Avg excl. Jan '25 ramp</div>
+    <div class="value">${Math.round(postCleanAvg).toLocaleString()}</div>
+    <div class="sub">+${pctChangeClean}% vs pre · Feb–Jun 2025</div>
+  </div>
+  <div class="card" style="">
+    <div class="label">Peak Post Month</div>
+    <div class="value" style="color:var(--danger)">4,026</div>
+    <div class="sub">May 2025 · +${((4026 - preAvg) / preAvg * 100).toFixed(0)}% vs pre avg</div>
+  </div>
+`;
+
+// ── Bar Chart ─────────────────────────────────────────────────────────────────
+const labels  = DATA.map(d => d.month);
+const signals = DATA.map(d => d.signal);
+const bgColors = DATA.map(d =>
+  d.period === "pre"     ? "rgba(88,166,255,0.75)"  :
+  d.period === "holiday" ? "rgba(227,179,65,0.65)"  :
+                           "rgba(63,185,80,0.75)"
+);
+const borderColors = DATA.map(d =>
+  d.period === "pre"     ? "#58a6ff"  :
+  d.period === "holiday" ? "#e3b341"  :
+                           "#3fb950"
+);
+
+new Chart(document.getElementById("barChart"), {
+  type: "bar",
+  data: {
+    labels,
+    datasets: [{
+      label: "Signal Contacts",
+      data: signals,
+      backgroundColor: bgColors,
+      borderColor: borderColors,
+      borderWidth: 1.5,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.parsed.y.toLocaleString()} signal contacts`,
+          afterLabel: ctx => {
+            const d = DATA[ctx.dataIndex];
+            return ` Rate: ${(d.signal / d.total * 1e6).toFixed(1)} per 1M total`;
+          }
+        }
+      },
+      annotation: {}
+    },
+    scales: {
+      x: { ticks: { color: "#8b949e" }, grid: { color: "rgba(48,54,61,0.6)" } },
+      y: {
+        ticks: { color: "#8b949e", callback: v => v.toLocaleString() },
+        grid: { color: "rgba(48,54,61,0.6)" },
+        title: { display: true, text: "Signal Contacts", color: "#8b949e" }
+      }
+    }
+  }
+});
+
+// ── Rate Chart ────────────────────────────────────────────────────────────────
+new Chart(document.getElementById("rateChart"), {
+  type: "line",
+  data: {
+    labels,
+    datasets: [{
+      label: "Signal Rate (per 1M)",
+      data: DATA.map(d => +(d.signal / d.total * 1e6).toFixed(2)),
+      borderColor: "#a371f7",
+      backgroundColor: "rgba(163,113,247,0.1)",
+      borderWidth: 2,
+      pointRadius: 5,
+      pointBackgroundColor: DATA.map(d =>
+        d.period === "pre"     ? "#58a6ff"  :
+        d.period === "holiday" ? "#e3b341"  :
+                                 "#3fb950"
+      ),
+      tension: 0.3,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y.toFixed(1)} per 1M contacts` } }
+    },
+    scales: {
+      x: { ticks: { color: "#8b949e" }, grid: { color: "rgba(48,54,61,0.6)" } },
+      y: {
+        ticks: { color: "#8b949e" },
+        grid: { color: "rgba(48,54,61,0.6)" },
+        title: { display: true, text: "Per 1M Total Contacts", color: "#8b949e" }
+      }
+    }
+  }
+});
+
+// ── Donut Chart ───────────────────────────────────────────────────────────────
+new Chart(document.getElementById("donutChart"), {
+  type: "doughnut",
+  data: {
+    labels: ["Pre-Expansion (Jul–Oct 2024)", "Post-Expansion (Jan–Jun 2025)"],
+    datasets: [{
+      data: [Math.round(preAvg), Math.round(postAvg)],
+      backgroundColor: ["rgba(88,166,255,0.75)", "rgba(63,185,80,0.75)"],
+      borderColor: ["#58a6ff", "#3fb950"],
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true,
+    cutout: "60%",
+    plugins: {
+      legend: {
+        labels: { color: "#8b949e", font: { size: 12 } },
+        position: "bottom"
+      },
+      tooltip: { callbacks: { label: ctx => ` ${Math.round(ctx.raw).toLocaleString()} avg/month` } }
+    }
+  }
+});
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+const tbody = document.getElementById("tableBody");
+const preAvgForTable = Math.round(preAvg);
+
+DATA.forEach(d => {
+  const rate   = (d.signal / d.total * 1e6).toFixed(1);
+  const delta  = d.period === "pre" ? "—" : (((d.signal - preAvg) / preAvg) * 100).toFixed(0) + "%";
+  const deltaStyle = d.period !== "pre"
+    ? (+delta > 0 ? "color:var(--danger)" : "color:var(--post-color)")
+    : "";
+  const pillClass =
+    d.period === "pre"     ? "pill pill-pre"     :
+    d.period === "holiday" ? "pill pill-holiday"  :
+                             "pill pill-post";
+  const pillLabel =
+    d.period === "pre"     ? "Pre"      :
+    d.period === "holiday" ? "Holiday"  :
+                             "Post";
+  const rowClass =
+    d.period === "post"    ? "is-post"    :
+    d.period === "holiday" ? "is-holiday" :
+                             "";
+
+  tbody.innerHTML += `
+    <tr class="${rowClass}">
+      <td class="month">${d.month}</td>
+      <td><span class="${pillClass}">${pillLabel}</span></td>
+      <td class="num">${fmt(d.total)}</td>
+      <td class="num" style="${d.period === 'post' ? 'color:var(--post-color);font-weight:600' : ''}">${fmt(d.signal)}</td>
+      <td class="num">${rate}</td>
+      <td class="num" style="${deltaStyle}">${d.period !== "pre" ? (+parseFloat(delta) > 0 ? "+" : "") + delta : "—"}</td>
+    </tr>
+  `;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hot Dog Label Experiment — Store #3520 Walmart Secaucus</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --walmart-blue: #0071CE;
+      --walmart-blue-dark: #004f91;
+      --walmart-yellow: #FFC220;
+      --bg: #f0f4f8;
+      --card-bg: #ffffff;
+      --text-primary: #1a1a2e;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --green: #16a34a;
+      --green-light: #dcfce7;
+      --red: #dc2626;
+      --red-light: #fee2e2;
+      --yellow: #d97706;
+      --yellow-light: #fef3c7;
+      --blue-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .header {
+      background: linear-gradient(135deg, var(--walmart-blue-dark) 0%, var(--walmart-blue) 100%);
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-icon {
+      width: 44px; height: 44px;
+      background: var(--walmart-yellow);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; line-height: 1.2; }
+    .header h1 span { font-size: 13px; font-weight: 400; opacity: 0.8; display: block; margin-top: 2px; }
+    .header-right {
+      display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    }
+    .header-stat { text-align: right; }
+    .header-stat .label { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em; }
+    .header-stat .value { font-size: 17px; font-weight: 700; }
+    .header-badge {
+      background: var(--walmart-yellow);
+      color: var(--walmart-blue-dark);
+      font-size: 12px; font-weight: 700;
+      padding: 4px 12px; border-radius: 20px;
+    }
+
+    /* MILESTONE TRACKER */
+    .milestone-bar {
+      background: var(--walmart-blue-dark);
+      padding: 12px 32px;
+      display: flex; align-items: center; gap: 0;
+    }
+    .milestone-step {
+      flex: 1; display: flex; align-items: center; gap: 0;
+    }
+    .milestone-dot {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.5);
+      background: transparent;
+    }
+    .milestone-dot.active {
+      background: var(--walmart-yellow);
+      border-color: var(--walmart-yellow);
+      color: var(--walmart-blue-dark);
+      box-shadow: 0 0 0 4px rgba(255,194,32,0.25);
+    }
+    .milestone-dot.complete {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+    }
+    .milestone-text { margin-left: 10px; }
+    .milestone-text .title { font-size: 12px; font-weight: 600; color: #fff; }
+    .milestone-text .sub { font-size: 11px; color: rgba(255,255,255,0.55); }
+    .milestone-line {
+      flex: 1; height: 2px;
+      background: rgba(255,255,255,0.15);
+      margin: 0 12px;
+    }
+    .milestone-line.done { background: var(--green); }
+
+    /* PARTIAL WEEK ALERT */
+    .alert-banner {
+      background: #fff8e1;
+      border-left: 4px solid var(--walmart-yellow);
+      padding: 10px 32px;
+      font-size: 13px; color: #78520a;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* MAIN CONTENT */
+    .content { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+
+    /* SECTION TITLE */
+    .section-title {
+      font-size: 13px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* METRIC CARDS GRID */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--walmart-blue);
+    }
+    .metric-card.primary::before { background: var(--walmart-blue); }
+    .metric-card.warning::before { background: var(--yellow); }
+    .metric-card.success::before { background: var(--green); }
+
+    .metric-label {
+      font-size: 12px; font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .metric-value {
+      font-size: 32px; font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .metric-sub {
+      font-size: 12px; color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .metric-delta {
+      display: inline-flex; align-items: center; gap: 4px;
+      margin-top: 10px;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 700;
+    }
+    .delta-down { background: var(--green-light); color: var(--green); }
+    .delta-up { background: var(--red-light); color: var(--red); }
+    .delta-neutral { background: var(--yellow-light); color: var(--yellow); }
+    .metric-note {
+      font-size: 11px; color: var(--text-muted);
+      margin-top: 6px;
+      font-style: italic;
+    }
+
+    /* CHARTS GRID */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 900px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+    .chart-title {
+      font-size: 15px; font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .chart-subtitle {
+      font-size: 12px; color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+    .chart-wrapper { position: relative; height: 280px; }
+
+    /* TABLE */
+    .table-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      margin-bottom: 28px;
+      overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      text-align: left; padding: 10px 14px;
+      background: var(--bg); color: var(--text-muted);
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      border-bottom: 2px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg); }
+    tbody td { padding: 11px 14px; }
+    .week-tag {
+      display: inline-block;
+      padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 700;
+    }
+    .week-pre { background: var(--blue-light); color: var(--walmart-blue); }
+    .week-post { background: var(--green-light); color: var(--green); }
+    .week-partial { background: var(--yellow-light); color: var(--yellow); }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.total { font-weight: 700; }
+    td .change-pill {
+      display: inline-block; padding: 2px 7px; border-radius: 10px;
+      font-size: 11px; font-weight: 700;
+    }
+
+    /* GUARDRAIL GRID */
+    .guardrail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .guardrail-card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; gap: 14px;
+    }
+    .guardrail-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .guardrail-icon.ok { background: var(--green-light); }
+    .guardrail-icon.warn { background: var(--yellow-light); }
+    .guardrail-icon.tbd { background: var(--bg); }
+    .guardrail-info .name {
+      font-size: 12px; font-weight: 700;
+      color: var(--text-primary);
+    }
+    .guardrail-info .status {
+      font-size: 11px; margin-top: 2px;
+    }
+    .status-ok { color: var(--green); font-weight: 600; }
+    .status-warn { color: var(--yellow); font-weight: 600; }
+    .status-tbd { color: var(--text-muted); }
+
+    /* FOOTER */
+    .footer {
+      text-align: center; padding: 20px 32px;
+      font-size: 11px; color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      background: var(--card-bg);
+    }
+    .footer a { color: var(--walmart-blue); text-decoration: none; }
+
+    /* LEGEND STRIP */
+    .legend-strip {
+      display: flex; gap: 20px; flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--text-muted);
+    }
+    .legend-swatch {
+      width: 14px; height: 14px; border-radius: 3px;
+    }
+    .legend-line {
+      width: 20px; height: 3px; border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon">🌭</div>
+    <div>
+      <h1>Hot Dog Label Experiment — Store #3520
+        <span>Walmart Secaucus · Pre/Post Impact Dashboard · Driver Contacts (PIXIE)</span>
+      </h1>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-stat">
+      <div class="label">Pilot Start</div>
+      <div class="value">Mar 9, 2026</div>
+    </div>
+    <div class="header-stat">
+      <div class="label">Current Status</div>
+      <div class="value">Week 1</div>
+    </div>
+    <div class="header-stat">
+      <div class="label">Go/No-Go</div>
+      <div class="value">Mar 30</div>
+    </div>
+    <div id="refresh-status" style="font-size:11px;opacity:0.7;text-align:right">Loading…</div>
+  </div>
+</div>
+
+<!-- MILESTONE TRACKER -->
+<div class="milestone-bar">
+  <div class="milestone-step">
+    <div class="milestone-dot active">1</div>
+    <div class="milestone-text">
+      <div class="title">Week 1 — Launch &amp; Hypercare</div>
+      <div class="sub">Mar 9–15 · SOP validation</div>
+    </div>
+  </div>
+  <div class="milestone-line"></div>
+  <div class="milestone-step">
+    <div class="milestone-dot">2</div>
+    <div class="milestone-text">
+      <div class="title">Week 2 — Midpoint Check</div>
+      <div class="sub">Mar 16–22 · Early CPO read</div>
+    </div>
+  </div>
+  <div class="milestone-line"></div>
+  <div class="milestone-step">
+    <div class="milestone-dot">3</div>
+    <div class="milestone-text">
+      <div class="title">Week 3 — Go/No-Go</div>
+      <div class="sub">Mar 23–29 · Full evaluation</div>
+    </div>
+  </div>
+</div>
+
+<!-- PARTIAL WEEK ALERT -->
+<div class="alert-banner">
+  ⚠️ <strong>Week 1 data is partial</strong> — Pilot launched Mar 9. Current data covers <strong>4 days (Mar 9–12)</strong>.
+  Week-over-week comparisons use a 4-week pre-experiment baseline (Feb 9 – Mar 8).
+  Pro-rated weekly estimate shown where noted.
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="content">
+
+  <!-- PRIMARY METRICS -->
+  <div class="section-title">🔴 Primary Metrics</div>
+  <div class="metrics-grid" id="metrics-grid">
+    <div class="metric-card primary" style="opacity:0.4;pointer-events:none">
+      <div class="metric-label">Loading data…</div>
+      <div class="metric-value">—</div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="section-title">📈 Daily Trend</div>
+  <div class="charts-grid">
+
+    <!-- MAIN TREND CHART -->
+    <div class="chart-card">
+      <div class="chart-title">Label Contact Trend — Day over Day</div>
+      <div class="chart-subtitle">Daily label-related driver contacts · Shaded = pilot period (Mar 9+) · Dashed = pre-pilot daily avg (5.3/day)</div>
+      <div class="legend-strip">
+        <div class="legend-item"><div class="legend-line" style="background:#0071CE;height:3px;border-radius:2px"></div> Pre-Pilot contacts</div>
+        <div class="legend-item"><div class="legend-line" style="background:#16a34a;height:3px;border-radius:2px"></div> Pilot contacts</div>
+        <div class="legend-item"><div class="legend-line" style="background:#dc2626;height:2px;border-top:2px dashed #dc2626"></div> Daily avg (5.3/day)</div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- DONUT BREAKDOWN -->
+    <div class="chart-card">
+      <div class="chart-title">Pre-Pilot Issue Mix</div>
+      <div class="chart-subtitle">Total contacts by type (Feb 9 – Mar 8)</div>
+      <div class="chart-wrapper">
+        <canvas id="donutChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- DAILY DATA TABLE -->
+  <div class="section-title">📊 Daily Detail Table</div>
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Day</th>
+          <th>Period</th>
+          <th class="num">Label Missing</th>
+          <th class="num">Scan Malfunction</th>
+          <th class="num">Inaccurate</th>
+          <th class="num">Total</th>
+          <th class="num">DoD Change</th>
+        </tr>
+      </thead>
+      <tbody id="weeklyTableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- GUARDRAIL METRICS -->
+  <div class="section-title">🟡 Guardrail Metrics — Week 1 Status</div>
+  <div class="guardrail-grid">
+
+    <div class="guardrail-card">
+      <div class="guardrail-icon tbd">⏱️</div>
+      <div class="guardrail-info">
+        <div class="name">Associate Handling Time</div>
+        <div class="status status-tbd">Awaiting ops data — no signal yet</div>
+      </div>
+    </div>
+
+    <div class="guardrail-card">
+      <div class="guardrail-icon tbd">📦</div>
+      <div class="guardrail-info">
+        <div class="name">On-Time Pickup Rate</div>
+        <div class="status status-tbd">Monitor via ops dashboard</div>
+      </div>
+    </div>
+
+    <div class="guardrail-card">
+      <div class="guardrail-icon tbd">🚗</div>
+      <div class="guardrail-info">
+        <div class="name">On-Time Delivery Rate</div>
+        <div class="status status-tbd">Monitor via ops dashboard</div>
+      </div>
+    </div>
+
+    <div class="guardrail-card">
+      <div class="guardrail-icon tbd">🎯</div>
+      <div class="guardrail-info">
+        <div class="name">Order Accuracy Contacts</div>
+        <div class="status status-tbd">No material change flagged</div>
+      </div>
+    </div>
+
+    <div class="guardrail-card">
+      <div class="guardrail-icon tbd">💥</div>
+      <div class="guardrail-info">
+        <div class="name">Damage Contacts</div>
+        <div class="status status-tbd">No material change flagged</div>
+      </div>
+    </div>
+
+    <div class="guardrail-card">
+      <div class="guardrail-icon tbd">📲</div>
+      <div class="guardrail-info">
+        <div class="name">Tote Scan Incorrect (Umar's)</div>
+        <div class="status status-tbd">Check alerting dashboard</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- QUALITATIVE SIGNALS -->
+  <div class="section-title">🟢 Qualitative Signals — Week 1</div>
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Signal</th>
+          <th>Date</th>
+          <th>Sentiment</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Store Ops</strong></td>
+          <td><em>Add feedback here from store ops teams…</em></td>
+          <td>—</td>
+          <td><span class="week-tag week-partial">Pending</span></td>
+        </tr>
+        <tr>
+          <td><strong>Drivers</strong></td>
+          <td><em>Add feedback from driver field reports…</em></td>
+          <td>—</td>
+          <td><span class="week-tag week-partial">Pending</span></td>
+        </tr>
+        <tr>
+          <td><strong>MFL/RFL Partners</strong></td>
+          <td><em>Add feedback from MFL/RFL partners…</em></td>
+          <td>—</td>
+          <td><span class="week-tag week-partial">Pending</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:12px;">
+      💡 <strong>How to update this table:</strong> Open this file in a text editor and find the <code>Qualitative Signals</code> tbody section to add rows.
+    </p>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  Data source: <code>wmt-driver-insights.PIXIE.airr_tagging_embedding</code> ·
+  Filter: <code>MARKET_NM = 'Walmart Secaucus' (Store #3520)</code> ·
+  Contacts: <code>ai_issue IN ('Drop-Off Label Missing', 'Drop-Off Label Scan Malfunction', 'Drop-Off Label Inaccurate')</code> ·
+  Last refreshed: <strong id="lastRefreshedTime">—</strong> ·
+  Owner: Delivery / Drop-Off Experience Ops
+  <br/><br/>
+  🌀 Magic applied with <a href="https://wibey.walmart.com/cli">Wibey CLI</a> 🪄
+</div>
+
+<script>
+  // ─── Chart instances (destroyed & rebuilt on re-render) ───────────────────
+  let trendChartInst = null;
+  let donutChartInst = null;
+
+  // ─── Render dashboard from data ───────────────────────────────────────────
+  function renderDashboard(days) {
+    const prePilotDays  = days.filter(d => !d.isPilot);
+    const pilotDays     = days.filter(d =>  d.isPilot);
+    const prePilotN     = prePilotDays.length || 1;
+
+    const prePilot = { missing: 0, scan: 0, inaccurate: 0 };
+    prePilotDays.forEach(d => {
+      prePilot.missing    += d.missing;
+      prePilot.scan       += d.scan;
+      prePilot.inaccurate += d.inaccurate;
+    });
+    const prePilotTotal = prePilot.missing + prePilot.scan + prePilot.inaccurate;
+    const dailyAvg      = parseFloat((prePilotTotal / prePilotN).toFixed(1));
+
+    const pilot = { missing: 0, scan: 0, inaccurate: 0 };
+    pilotDays.forEach(d => {
+      pilot.missing    += d.missing;
+      pilot.scan       += d.scan;
+      pilot.inaccurate += d.inaccurate;
+    });
+    const pilotTotal    = pilot.missing + pilot.scan + pilot.inaccurate;
+    const pilotDayCount = pilotDays.length;
+
+    // Pre-pilot weekly avg (× 7 days)
+    const preWkAvg = {
+      missing:    parseFloat(((prePilot.missing    / prePilotN) * 7).toFixed(1)),
+      scan:       parseFloat(((prePilot.scan       / prePilotN) * 7).toFixed(1)),
+      inaccurate: parseFloat(((prePilot.inaccurate / prePilotN) * 7).toFixed(1)),
+      total:      parseFloat((dailyAvg * 7).toFixed(1)),
+    };
+
+    // Pro-rated pilot weekly est
+    const proRate = d => pilotDayCount > 0 ? Math.round(d * 7 / pilotDayCount) : 0;
+    const pilotProTotal    = proRate(pilotTotal);
+    const pctChange = (val, base) => base > 0 ? Math.round((val - base) / base * 100) : 0;
+
+    // ── Metric cards ────────────────────────────────────────────────────────
+    const mkDelta = (proRated, base) => {
+      if (pilotDayCount === 0) return `<div class="metric-delta delta-neutral">⏳ No pilot data yet</div>`;
+      const pct = pctChange(proRated, base);
+      const cls = pct < 0 ? 'delta-down' : pct > 0 ? 'delta-up' : 'delta-neutral';
+      const arrow = pct < 0 ? '▼' : pct > 0 ? '▲' : '—';
+      return `<div class="metric-delta ${cls}">${arrow} ${Math.abs(pct)}% vs pre-pilot avg</div>`;
+    };
+
+    const cards = [
+      {
+        label: 'Total Label Contacts',
+        type: 'primary',
+        value: pilotTotal,
+        sub: `${pilotDayCount} pilot day${pilotDayCount !== 1 ? 's' : ''} so far`,
+        delta: mkDelta(pilotProTotal, preWkAvg.total),
+        note: `Pre-pilot daily avg: ${dailyAvg}/day · Pro-rated wk est: ~${pilotProTotal}/wk`,
+      },
+      {
+        label: 'Drop-Off Label Missing',
+        type: 'primary',
+        value: pilot.missing,
+        sub: `Pre-pilot avg: ${preWkAvg.missing}/wk`,
+        delta: mkDelta(proRate(pilot.missing), preWkAvg.missing),
+        note: `Pro-rated wk est: ~${proRate(pilot.missing)}/wk`,
+      },
+      {
+        label: 'Drop-Off Label Scan Malfunction',
+        type: 'primary',
+        value: pilot.scan,
+        sub: `Pre-pilot avg: ${preWkAvg.scan}/wk`,
+        delta: mkDelta(proRate(pilot.scan), preWkAvg.scan),
+        note: `Pro-rated wk est: ~${proRate(pilot.scan)}/wk`,
+      },
+      {
+        label: 'Drop-Off Label Inaccurate',
+        type: 'warning',
+        value: pilot.inaccurate,
+        sub: `Pre-pilot avg: ${preWkAvg.inaccurate}/wk`,
+        delta: mkDelta(proRate(pilot.inaccurate), preWkAvg.inaccurate),
+        note: `Pro-rated wk est: ~${proRate(pilot.inaccurate)}/wk`,
+      },
+    ];
+
+    document.getElementById('metrics-grid').innerHTML = cards.map(c => `
+      <div class="metric-card ${c.type}">
+        <div class="metric-label">${c.label}</div>
+        <div class="metric-value">${c.value}</div>
+        <div class="metric-sub">${c.sub}</div>
+        ${c.delta}
+        <div class="metric-note">${c.note}</div>
+      </div>
+    `).join('');
+
+    // ── Daily table ─────────────────────────────────────────────────────────
+    const tbody = document.getElementById('weeklyTableBody');
+    tbody.innerHTML = `
+      <tr style="background:#eff6ff;font-style:italic">
+        <td><strong>Pre-Pilot Avg/Day</strong></td>
+        <td>—</td>
+        <td><span class="week-tag week-pre">${prePilotN}-day avg</span></td>
+        <td class="num">${(prePilot.missing/prePilotN).toFixed(1)}</td>
+        <td class="num">${(prePilot.scan/prePilotN).toFixed(1)}</td>
+        <td class="num">${(prePilot.inaccurate/prePilotN).toFixed(1)}</td>
+        <td class="num total">${dailyAvg}</td>
+        <td class="num">—</td>
+      </tr>
+    `;
+
+    [...days].reverse().forEach((d, ri) => {
+      const i = days.length - 1 - ri;
+      const total    = d.missing + d.scan + d.inaccurate;
+      const prevTotal = i > 0 ? days[i-1].missing + days[i-1].scan + days[i-1].inaccurate : null;
+      const dod      = prevTotal !== null ? ((total - prevTotal) / Math.max(prevTotal, 1) * 100).toFixed(0) : null;
+      const dow      = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i % 7];
+
+      let periodTag  = '<span class="week-tag week-pre">Pre-Pilot</span>';
+      if (d.isPilot) periodTag = '<span class="week-tag week-partial">🟡 Pilot</span>';
+
+      let dodCell = '—';
+      if (dod !== null) {
+        const num = parseFloat(dod);
+        const cls   = num < 0 ? 'delta-down' : num > 0 ? 'delta-up' : 'delta-neutral';
+        const arrow = num < 0 ? '▼' : num > 0 ? '▲' : '—';
+        dodCell = `<span class="change-pill metric-delta ${cls}" style="font-size:11px;padding:2px 7px">${arrow} ${Math.abs(num)}%</span>`;
+      }
+
+      tbody.innerHTML += `
+        <tr style="${d.isPilot ? 'background:#f0fdf4;' : ''}">
+          <td><strong>${d.date}</strong></td>
+          <td style="color:var(--text-muted);font-size:12px">${dow}</td>
+          <td>${periodTag}</td>
+          <td class="num">${d.missing}</td>
+          <td class="num">${d.scan}</td>
+          <td class="num">${d.inaccurate}</td>
+          <td class="num total">${total}</td>
+          <td class="num">${dodCell}</td>
+        </tr>
+      `;
+    });
+
+    // ── Trend chart ─────────────────────────────────────────────────────────
+    if (trendChartInst) trendChartInst.destroy();
+    const labels          = days.map(d => d.date);
+    const pilotStartIndex = days.findIndex(d => d.isPilot);
+    const totals          = days.map(d => d.missing + d.scan + d.inaccurate);
+
+    trendChartInst = new Chart(document.getElementById('trendChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Total Contacts',
+            data: totals,
+            backgroundColor: 'transparent',
+            pointBackgroundColor: days.map(d => d.isPilot ? '#16a34a' : '#0071CE'),
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            borderWidth: 2,
+            tension: 0.3,
+            segment: {
+              borderColor: ctx =>
+                ctx.p0.parsed.x >= pilotStartIndex - 1 && ctx.p1.parsed.x >= pilotStartIndex
+                  ? '#16a34a' : '#0071CE',
+            },
+          },
+          {
+            label: 'Pre-Pilot Daily Avg',
+            data: days.map(() => dailyAvg),
+            borderColor: '#dc2626',
+            borderDash: [6, 4],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: ([item]) => {
+                const d = days[item.dataIndex];
+                return `${d.date} ${d.isPilot ? '🟡 Pilot' : '(Pre-Pilot)'}`;
+              },
+              label: (item) => {
+                if (item.dataset.label === 'Pre-Pilot Daily Avg') return ` Avg: ${dailyAvg}/day`;
+                const d = days[item.dataIndex];
+                return [
+                  ` Total: ${item.parsed.y}`,
+                  ` Missing: ${d.missing}`,
+                  ` Scan Malfunction: ${d.scan}`,
+                  ` Inaccurate: ${d.inaccurate}`,
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              maxRotation: 45,
+              callback: (val, i) => i % 3 === 0 ? labels[i] : '',
+            }
+          },
+          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { stepSize: 2 } }
+        }
+      }
+    });
+
+    // ── Donut chart ──────────────────────────────────────────────────────────
+    if (donutChartInst) donutChartInst.destroy();
+    donutChartInst = new Chart(document.getElementById('donutChart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Label Missing', 'Scan Malfunction', 'Inaccurate'],
+        datasets: [{ data: [prePilot.missing, prePilot.scan, prePilot.inaccurate],
+          backgroundColor: ['#0071CE', '#FFC220', '#7c3aed'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 14, font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const pct = ((ctx.parsed / prePilotTotal) * 100).toFixed(1);
+                return ` ${ctx.label}: ${ctx.parsed} contacts (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ─── Static data (embedded at build time) ────────────────────────────────
+  const STATIC_DATA = {"days":[{"date":"Feb 9","missing":3,"scan":0,"inaccurate":1,"isPilot":false},{"date":"Feb 10","missing":0,"scan":1,"inaccurate":0,"isPilot":false},{"date":"Feb 11","missing":6,"scan":2,"inaccurate":2,"isPilot":false},{"date":"Feb 12","missing":5,"scan":5,"inaccurate":0,"isPilot":false},{"date":"Feb 13","missing":7,"scan":3,"inaccurate":1,"isPilot":false},{"date":"Feb 14","missing":5,"scan":3,"inaccurate":0,"isPilot":false},{"date":"Feb 15","missing":3,"scan":1,"inaccurate":0,"isPilot":false},{"date":"Feb 16","missing":7,"scan":3,"inaccurate":0,"isPilot":false},{"date":"Feb 17","missing":5,"scan":5,"inaccurate":2,"isPilot":false},{"date":"Feb 18","missing":2,"scan":2,"inaccurate":0,"isPilot":false},{"date":"Feb 19","missing":1,"scan":3,"inaccurate":0,"isPilot":false},{"date":"Feb 20","missing":3,"scan":4,"inaccurate":0,"isPilot":false},{"date":"Feb 21","missing":2,"scan":1,"inaccurate":0,"isPilot":false},{"date":"Feb 22","missing":1,"scan":2,"inaccurate":0,"isPilot":false},{"date":"Feb 23","missing":0,"scan":0,"inaccurate":0,"isPilot":false},{"date":"Feb 24","missing":0,"scan":0,"inaccurate":0,"isPilot":false},{"date":"Feb 25","missing":4,"scan":0,"inaccurate":0,"isPilot":false},{"date":"Feb 26","missing":2,"scan":5,"inaccurate":0,"isPilot":false},{"date":"Feb 27","missing":4,"scan":2,"inaccurate":0,"isPilot":false},{"date":"Feb 28","missing":2,"scan":2,"inaccurate":0,"isPilot":false},{"date":"Mar 1","missing":2,"scan":1,"inaccurate":0,"isPilot":false},{"date":"Mar 2","missing":4,"scan":2,"inaccurate":1,"isPilot":false},{"date":"Mar 3","missing":2,"scan":1,"inaccurate":0,"isPilot":false},{"date":"Mar 4","missing":1,"scan":2,"inaccurate":0,"isPilot":false},{"date":"Mar 5","missing":1,"scan":5,"inaccurate":1,"isPilot":false},{"date":"Mar 6","missing":1,"scan":3,"inaccurate":0,"isPilot":false},{"date":"Mar 7","missing":4,"scan":2,"inaccurate":0,"isPilot":false},{"date":"Mar 8","missing":2,"scan":1,"inaccurate":0,"isPilot":false},{"date":"Mar 9","missing":1,"scan":2,"inaccurate":0,"isPilot":true},{"date":"Mar 10","missing":2,"scan":2,"inaccurate":0,"isPilot":true},{"date":"Mar 11","missing":4,"scan":0,"inaccurate":0,"isPilot":true},{"date":"Mar 12","missing":2,"scan":1,"inaccurate":2,"isPilot":true},{"date":"Mar 13","missing":1,"scan":4,"inaccurate":0,"isPilot":true},{"date":"Mar 14","missing":5,"scan":0,"inaccurate":0,"isPilot":true},{"date":"Mar 15","missing":6,"scan":1,"inaccurate":1,"isPilot":true},{"date":"Mar 16","missing":2,"scan":3,"inaccurate":0,"isPilot":true},{"date":"Mar 17","missing":3,"scan":2,"inaccurate":0,"isPilot":true}],"lastRefreshed":"2026-03-17T21:53:22.073Z","nextRefresh":"5:00 AM daily"};
+
+  async function init() {
+    const { days, lastRefreshed, nextRefresh } = STATIC_DATA;
+    renderDashboard(days);
+    const ts = lastRefreshed
+      ? new Date(lastRefreshed).toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' })
+      : '—';
+    document.getElementById('lastRefreshedTime').textContent = ts;
+    document.getElementById('refresh-status').innerHTML =
+      `✓ Snapshot · As of ${ts} · <em style="opacity:.6">Live version requires local server</em>`;
+  }
+
+  init();
+</script>
+</body>
+</html>

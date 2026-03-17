@@ -1,0 +1,7 @@
+bigquery_results/
+*.xlsx
+*.py
+*.ts
+*.json
+.DS_Store
+node_modules/
