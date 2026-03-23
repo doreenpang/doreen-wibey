@@ -42,9 +42,27 @@ def write_credentials():
 
 
 def query_bigquery():
+    import traceback
     from google.cloud import bigquery
+    from google.auth import default as google_auth_default
 
-    client = bigquery.Client(project=PROJECT)
+    # Print credential info for debugging (no secrets)
+    try:
+        creds, project = google_auth_default()
+        print(f"  Auth type    : {type(creds).__name__}")
+        print(f"  Auth project : {project}")
+        print(f"  Token valid  : {creds.valid}")
+        print(f"  Expiry       : {getattr(creds, 'expiry', 'N/A')}")
+    except Exception as auth_err:
+        print(f"  ⚠ Auth check failed: {auth_err}", file=sys.stderr)
+        traceback.print_exc()
+
+    try:
+        client = bigquery.Client(project=PROJECT)
+    except Exception as e:
+        print(f"  ✗ Client init failed: {e}", file=sys.stderr)
+        traceback.print_exc()
+        raise
 
     sql = f"""
     SELECT
@@ -63,8 +81,13 @@ def query_bigquery():
     ORDER BY day ASC
     """
 
-    print(f"  Running BigQuery query…")
-    rows = list(client.query(sql).result())
+    print(f"  Running BigQuery query on project={PROJECT}…")
+    try:
+        rows = list(client.query(sql).result())
+    except Exception as e:
+        print(f"  ✗ Query failed: {e}", file=sys.stderr)
+        traceback.print_exc()
+        raise
     print(f"  Got {len(rows)} raw rows from BigQuery")
     return rows
 

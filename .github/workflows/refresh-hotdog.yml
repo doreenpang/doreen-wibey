@@ -28,7 +28,9 @@ jobs:
       - name: Refresh dashboard data from BigQuery
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-        run: python3 scripts/refresh_hotdog.py
+        run: |
+          python3 -u scripts/refresh_hotdog.py 2>&1 | tee /tmp/refresh_output.txt
+          exit ${PIPESTATUS[0]}
 
       - name: Commit and push updated dashboard
         run: |
@@ -41,3 +43,13 @@ jobs:
             git commit -m "chore: refresh hotdog dashboard data $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push
           fi
+
+      - name: Save error log on failure
+        if: failure()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          cp /tmp/refresh_output.txt refresh-error.log 2>/dev/null || echo "No output captured" > refresh-error.log
+          git add refresh-error.log
+          git commit -m "debug: capture refresh error log $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
