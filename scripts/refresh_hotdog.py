@@ -31,14 +31,25 @@ CREDS_FILE   = os.path.join(REPO_ROOT, ".gcp_credentials.json")
 
 def write_credentials():
     """Write GCP_CREDENTIALS env var to a temp file for ADC."""
-    creds_json = os.environ.get("GCP_CREDENTIALS")
-    if creds_json:
-        with open(CREDS_FILE, "w") as f:
-            f.write(creds_json)
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CREDS_FILE
-        print("✓ Credentials written from GCP_CREDENTIALS env var")
-    else:
+    creds_json = os.environ.get("GCP_CREDENTIALS", "").strip()
+    print(f"  GCP_CREDENTIALS length : {len(creds_json)} chars")
+    if not creds_json:
         print("ℹ  No GCP_CREDENTIALS env var — using local ADC")
+        return
+
+    # Validate it's parseable JSON before writing
+    try:
+        parsed = json.loads(creds_json)
+        print(f"  Credential type        : {parsed.get('type', 'unknown')}")
+    except json.JSONDecodeError as e:
+        print(f"  ✗ GCP_CREDENTIALS is not valid JSON: {e}", file=sys.stderr)
+        print(f"  First 100 chars: {repr(creds_json[:100])}", file=sys.stderr)
+        sys.exit(1)
+
+    with open(CREDS_FILE, "w") as f:
+        f.write(creds_json)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CREDS_FILE
+    print(f"✓ Credentials written to {CREDS_FILE}")
 
 
 def query_bigquery():
